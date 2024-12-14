@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Text Replacer Settings</title>
+  <style>
+    body {
+      width: 380px;
+      max-height: 600px;
+      padding: 20px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+    }
+
+    h2 {
+      color: #2c3e50;
+      margin: 0 0 20px 0;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #3498db;
+      font-size: 1.4em;
+    }
+
+    #replacements {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 10px;
+      margin-bottom: 15px;
+    }
+
+    #replacements::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #replacements::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+
+    #replacements::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    #replacements::-webkit-scrollbar-thumb:hover {
+      background: #666;
+    }
+
+    .replacement-pair {
+      background: white;
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .replacement-pair:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    textarea {
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 2px rgba(52,152,219,0.2);
+    }
+
+    .replacement-pair label {
+      display: block;
+      margin-bottom: 5px;
+      color: #666;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button.remove {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #e74c3c;
+      color: white;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    button.remove:hover {
+      background: #c0392b;
+    }
+
+    #addNew {
+      background: #2ecc71;
+      color: white;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    #addNew:hover {
+      background: #27ae60;
+    }
+
+    #save {
+      background: #3498db;
+      color: white;
+      width: 100%;
+    }
+
+    #save:hover {
+      background: #2980b9;
+    }
+
+    .save-feedback {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2ecc71;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: none;
+      animation: fadeInOut 2s ease-in-out;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, 20px); }
+      15% { opacity: 1; transform: translate(-50%, 0); }
+      85% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -20px); }
+    }
+  </style>
+</head>
+<body>
+  <h2>Text Replacements</h2>
+  <div id="replacements"></div>
+  <button id="addNew">Add New Replacement</button>
+  <button id="save">Save Changes</button>
+  <div class="save-feedback">Changes saved successfully!</div>
+  <script src="popup.js"></script>
+</body>
+</html>

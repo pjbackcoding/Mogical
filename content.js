@@ -54,18 +54,14 @@ function replaceText(text, isHTML = false) {
  * Use the 'native setter' trick to update an <input> or <textarea>
  * in a way that React/Angular/Vue usually recognize as a real user input.
  */
-function applyReactCompatibleValue(element, newValue) {
-  // If it's a <textarea>, use the prototype descriptor from HTMLTextAreaElement
-  // If it's an <input>, use the prototype descriptor from HTMLInputElement
+function setNativeValue(element, value) {
   const prototype = element instanceof HTMLTextAreaElement
     ? window.HTMLTextAreaElement.prototype
     : window.HTMLInputElement.prototype;
+    
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+  descriptor.set.call(element, value);
 
-  const nativeValueSetter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
-  // Set the 'value' property as if the user typed it
-  nativeValueSetter.call(element, newValue);
-
-  // Dispatch the 'input' event so frameworks see the change
   const event = new Event('input', { bubbles: true });
   element.dispatchEvent(event);
 }
@@ -140,7 +136,7 @@ function handleInput(event) {
 
     if (element.value !== undefined) {
       // <input> or <textarea>
-      applyReactCompatibleValue(element, newText);
+      setNativeValue(element, newText);
     } else if (element.isContentEditable) {
       // contenteditable
       applyReactCompatibleHTML(element, newText);
@@ -173,6 +169,26 @@ function scanPage() {
   while ((node = walker.nextNode())) {
     processTextNode(node);
   }
+}
+
+// Function to simulate a spacebar press
+function triggerSpacePress() {
+  const element = document.activeElement;
+  if (!element || !(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) return;
+  
+  // Get current value and cursor position
+  const start = element.selectionStart;
+  const end = element.selectionEnd;
+  const currentValue = element.value;
+  
+  // Insert space at cursor position
+  const newValue = currentValue.substring(0, start) + ' ' + currentValue.substring(end);
+  
+  // Update the value using the native setter
+  setNativeValue(element, newValue);
+  
+  // Restore cursor position after the inserted space
+  element.setSelectionRange(start + 1, start + 1);
 }
 
 // Initialize

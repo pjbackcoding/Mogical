@@ -1,5 +1,9 @@
 // content.js
 
+// URL of your Apps Script web app.
+// The ?action=readAll part calls the doGet() which returns all rows from the sheet.
+const SHEETS_SCRIPT_URL = ""
+
 // Store replacements in memory
 let replacements = [];
 let lastProcessedText = new Set(); // Keep track of processed text to avoid duplicates
@@ -15,21 +19,33 @@ function debounce(func, wait) {
   };
 }
 
-// Load replacements when the script starts
-function loadReplacements() {
-  chrome.storage.sync.get(['replacements'], function (result) {
-    replacements = result.replacements || [];
-    console.log('Loaded replacements:', replacements);
-  });
-}
+/**
+ * Load replacements from your Google Sheet via Apps Script.
+ * We'll do a simple "readAll" (GET request) to the provided URL.
+ */
+async function loadReplacementsFromSheet() {
+  try {
+    const response = await fetch(SHEETS_SCRIPT_URL);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch replacements: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    // data should be an array of objects, e.g. [ { id: '1', from: 'Hello', to: 'Hi' }, ... ]
+    console.log('Loaded replacements from Google Sheets:', data);
 
-// Listen for storage changes
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (changes.replacements) {
-    replacements = changes.replacements.newValue;
-    console.log('Updated replacements:', replacements);
+    // Convert it to the format we expect: [ { from: '...', to: '...' }, ... ]
+    // If your sheet objects have the same property names ("from", "to"), this is straightforward:
+    replacements = data.map(item => ({
+      from: item.from || '',
+      to: item.to || '',
+    }));
+
+  } catch (error) {
+    console.error('Error loading replacements from sheet:', error);
+    // Fallback to empty array on failure
+    replacements = [];
   }
-});
+}
 
 // Function to perform text replacement
 function replaceText(text, isHTML = false) {
@@ -40,13 +56,12 @@ function replaceText(text, isHTML = false) {
     if (!pair.from || !pair.to) return;
 
     try {
-      // Create a proper escaped version of the search text
+      // Create a properly escaped version of the search text
       const escapedFrom = pair.from
         .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         .replace(/\n/g, '\\n'); // Handle newlines specially
 
       const regex = new RegExp(escapedFrom, 'g');
-
       if (regex.test(newText)) {
         console.log(`Replacing "${pair.from}" with "${pair.to}"`);
         // If isHTML, replace \n with <br> in the "to" text
@@ -173,7 +188,7 @@ function scanPage() {
   }
 }
 
-// Function to simulate a spacebar press
+// Function to simulate a spacebar press (optional utility)
 function triggerSpacePress() {
   const element = document.activeElement;
   if (
@@ -198,16 +213,9 @@ function triggerSpacePress() {
   element.setSelectionRange(start + 1, start + 1);
 }
 
-// Initialize
-loadReplacements();
-
-// Add event listeners for input/editable elements
-document.addEventListener('input', handleInput);
-document.addEventListener('change', handleInput);
-
 /**
  * Debounced callback for MutationObserver.
- * This ensures we don't call the inner logic too many times if changes occur rapidly.
+ * Ensures we don't call the scanning logic too many times if changes occur rapidly.
  */
 const debouncedMutationCallback = debounce((mutations) => {
   mutations.forEach((mutation) => {
@@ -225,7 +233,7 @@ const debouncedMutationCallback = debounce((mutations) => {
       }
     });
   });
-}, 3000); // 3000ms debounce delay (adjust to your preference)
+}, 3000); // 3000ms debounce delay
 
 // Watch for DOM changes using our debounced callback
 const observer = new MutationObserver(debouncedMutationCallback);
@@ -235,8 +243,20 @@ observer.observe(document.body, {
   characterData: true,
 });
 
-// Periodically scan the page for new content if needed (optional)
-setInterval(scanPage, 1000); // Scan every second
+// =================== Initialization ====================
 
-// Initial scan
-scanPage();
+// 1) Load replacements from Google Sheets (async).
+// 2) After loading, run an initial scan. 
+// 3) Then set up the event listeners to handle changes.
+
+loadReplacementsFromSheet().then(() => {
+  // Initial scan once replacements are loaded
+  scanPage();
+});
+
+// Handle input events for editable elements
+document.addEventListener('input', handleInput);
+document.addEventListener('change', handleInput);
+
+// (Optional) Periodic re-scan of the page
+setInterval(scanPage, 1000);

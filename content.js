@@ -4,6 +4,17 @@
 let replacements = [];
 let lastProcessedText = new Set(); // Keep track of processed text to avoid duplicates
 
+// Debounce utility
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      func.apply(this, args);
+    }, wait);
+  };
+}
+
 // Load replacements when the script starts
 function loadReplacements() {
   chrome.storage.sync.get(['replacements'], function (result) {
@@ -70,14 +81,7 @@ function setNativeValue(element, value) {
  * For a contenteditable element, we can set innerHTML, then dispatch an input event.
  */
 function applyReactCompatibleHTML(element, newHTML) {
-  // You could consider using document.execCommand('insertHTML') (though deprecated)
-  // element.focus();
-  // document.execCommand('insertHTML', false, newHTML);
-
-  // Simpler approach: directly set innerHTML
   element.innerHTML = newHTML;
-
-  // Fire an input event so React/Angular see the change
   const event = new Event('input', { bubbles: true });
   element.dispatchEvent(event);
 }
@@ -126,8 +130,6 @@ function handleInput(event) {
     ? element.value
     : element.textContent;
 
-  // Use regular newlines for input/textarea; for contenteditable, we may do <br>
-  // So pass `element.isContentEditable` to replaceText if needed
   const newText = replaceText(originalText, element.isContentEditable);
 
   // Only update if text actually changed
@@ -174,7 +176,12 @@ function scanPage() {
 // Function to simulate a spacebar press
 function triggerSpacePress() {
   const element = document.activeElement;
-  if (!element || !(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) return;
+  if (
+    !element ||
+    !(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+  ) {
+    return;
+  }
   
   // Get current value and cursor position
   const start = element.selectionStart;
@@ -198,8 +205,11 @@ loadReplacements();
 document.addEventListener('input', handleInput);
 document.addEventListener('change', handleInput);
 
-// Watch for DOM changes
-const observer = new MutationObserver((mutations) => {
+/**
+ * Debounced callback for MutationObserver.
+ * This ensures we don't call the inner logic too many times if changes occur rapidly.
+ */
+const debouncedMutationCallback = debounce((mutations) => {
   mutations.forEach((mutation) => {
     // Process new or changed nodes
     mutation.addedNodes.forEach((node) => {
@@ -215,9 +225,10 @@ const observer = new MutationObserver((mutations) => {
       }
     });
   });
-});
+}, 3000); // 3000ms debounce delay (adjust to your preference)
 
-// Start observing the document with the configured parameters
+// Watch for DOM changes using our debounced callback
+const observer = new MutationObserver(debouncedMutationCallback);
 observer.observe(document.body, {
   childList: true,
   subtree: true,

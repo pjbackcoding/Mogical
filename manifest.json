@@ -3,7 +3,7 @@
   "name": "Mogical",
   "version": "1.0",
   "description": "Quickly replace text with predefined strings",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting","https://script.google.com/macros/s/*"],
   "action": {
     "default_popup": "popup.html"
   },

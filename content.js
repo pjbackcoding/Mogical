@@ -2,12 +2,11 @@
 
 // URL of your Apps Script web app.
 // The ?action=readAll part calls the doGet() which returns all rows from the sheet.
-const SHEETS_SCRIPT_URL = ""
+const SHEETS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxYqDER_niW37LLpV07PyjmOqxKw3WlbvOYS7UycX5SF23YhCDPr2smWYbE3UVTtcSTeA/exec";
 
 // Store replacements in memory
 let replacements = [];
 let lastProcessedText = new Set(); // Keep track of processed text to avoid duplicates
-
 // Debounce utility
 function debounce(func, wait) {
   let timeout;
@@ -242,6 +241,104 @@ observer.observe(document.body, {
   subtree: true,
   characterData: true,
 });
+
+// CRUD functions to interact with the Google Apps Script
+/**
+ * Create a new replacement
+ * @param {string} from - Text to replace
+ * @param {string} to - Replacement text
+ */
+async function createReplacement(from, to) {
+  try {
+    const response = await fetch(`${SHEETS_SCRIPT_URL}?action=create`, {
+      method: 'POST',
+      body: JSON.stringify({ from, to })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to create: ${response.status}`);
+    }
+    
+    const newItem = await response.json();
+    await loadReplacementsFromSheet(); // Reload all items
+    return newItem;
+  } catch (error) {
+    console.error('Error creating:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update an existing replacement
+ * @param {string} id - ID of the replacement to update
+ * @param {string} from - New 'from' text
+ * @param {string} to - New 'to' text
+ */
+async function updateReplacement(id, from, to) {
+  try {
+    const response = await fetch(`${SHEETS_SCRIPT_URL}?action=update`, {
+      method: 'POST',
+      body: JSON.stringify({ id, from, to })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update: ${response.status}`);
+    }
+    
+    const updated = await response.json();
+    await loadReplacementsFromSheet(); // Reload all items
+    return updated;
+  } catch (error) {
+    console.error('Error updating:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a replacement
+ * @param {string} id - ID of the replacement to delete
+ */
+async function deleteReplacement(id) {
+  try {
+    const response = await fetch(`${SHEETS_SCRIPT_URL}?action=delete`, {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete: ${response.status}`);
+    }
+    
+    const deleted = await response.json();
+    await loadReplacementsFromSheet(); // Reload all items
+    return deleted;
+  } catch (error) {
+    console.error('Error deleting:', error);
+    throw error;
+  }
+}
+
+/**
+ * Test function to call the Apps Script test endpoint
+ */
+async function testAppScript() {
+  try {
+    const response = await fetch(`${SHEETS_SCRIPT_URL}?action=test`, {
+      method: 'GET'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Test failed: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Test response:', result);
+    return result;
+  } catch (error) {
+    console.error('Error testing Apps Script:', error);
+    throw error;
+  }
+}
 
 // =================== Initialization ====================
 

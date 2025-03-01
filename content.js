@@ -159,6 +159,48 @@ observer.observe(document.body, {
 });
 
 /**************************************
+ * Input Handling (Editable Elements)
+ **************************************/
+/**
+ * Handle input/change events on editable elements like inputs, textareas,
+ * and contenteditable elements.
+ */
+function handleInput(event) {
+  const target = event.target;
+  
+  // Skip if target is null or if event is programmatic (from our own code).
+  if (!target || event._fromMogical) return;
+
+  // Handle different types of editable elements.
+  if (target.isContentEditable) {
+    // For contenteditable elements
+    const originalHTML = target.innerHTML;
+    const newHTML = replaceText(originalHTML, true);
+    if (newHTML !== originalHTML) {
+      // Mark the event so we don't process our own changes
+      const customEvent = new Event('input', { bubbles: true });
+      customEvent._fromMogical = true;
+      
+      // Apply changes
+      applyReactCompatibleHTML(target, newHTML);
+    }
+  } 
+  else if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+    // For standard form controls
+    const originalValue = target.value;
+    const newValue = replaceText(originalValue);
+    if (newValue !== originalValue) {
+      // Mark the event so we don't process our own changes
+      const customEvent = new Event('input', { bubbles: true });
+      customEvent._fromMogical = true;
+      
+      // Apply changes
+      setNativeValue(target, newValue);
+    }
+  }
+}
+
+/**************************************
  * Initialization
  **************************************/
 // Listen for input events on editable elements.

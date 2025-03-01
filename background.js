@@ -1,9 +1,8 @@
 // background.js
-// Import your bundled Firebase libraries as modules.
-// Ensure that firebase_app.js exports the Firebase object and that firebase_firestore.js
-// augments it with Firestore functionality.
-import firebase from './firebase_app.js';
-import './firebase_firestore.js';
+// Load Firebase libraries using importScripts for Manifest V3 service worker
+importScripts('firebase_app.js', 'firebase_firestore.js');
+
+// Now firebase is available as a global object
 
 // Firebase configuration for your project.
 const firebaseConfig = {
@@ -27,16 +26,38 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 console.log("Firebase initialized and Firestore 'db' is ready.");
 
-// On extension installation, set default replacements (if none exist) in chrome.storage.
+// On extension installation, set default replacements in both chrome.storage and Firestore.
 chrome.runtime.onInstalled.addListener(() => {
+  // Check if default replacements need to be set
   chrome.storage.sync.get(['replacements'], (result) => {
     if (!result.replacements) {
+      const defaultReplacements = [
+        { from: 'hello', to: 'hi' }  // Default replacement pair.
+      ];
+      
+      // Set in chrome.storage
       chrome.storage.sync.set({
-        replacements: [
-          { from: 'hello', to: 'hi' }  // Default replacement pair.
-        ]
+        replacements: defaultReplacements
       });
-      console.log("Default replacements have been set.");
+      
+      // Also set in Firestore if collection is empty
+      db.collection('replacements_collection').get().then(snapshot => {
+        if (snapshot.empty) {
+          // Collection is empty, add default replacements
+          const batch = db.batch();
+          
+          defaultReplacements.forEach(pair => {
+            const docRef = db.collection('replacements_collection').doc();
+            batch.set(docRef, pair);
+          });
+          
+          return batch.commit();
+        }
+      }).then(() => {
+        console.log("Default replacements have been set in both chrome.storage and Firestore.");
+      }).catch(error => {
+        console.error("Error setting default replacements in Firestore:", error);
+      });
     }
   });
 });
@@ -44,13 +65,22 @@ chrome.runtime.onInstalled.addListener(() => {
 // Listen for messages from content scripts.
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'fetchReplacements') {
-    // Fetch the replacements collection from Firestore.
-    db.collection('replacements').get()
+    // Fetch the replacements_collection from Firestore.
+    db.collection('replacements_collection').get()
       .then((querySnapshot) => {
         const replacements = [];
         querySnapshot.forEach(doc => {
-          replacements.push({ id: doc.id, ...doc.data() });
+          // Adapting to the specific structure with 'from' and 'to' fields
+          const data = doc.data();
+          if (data.from !== undefined && data.to !== undefined) {
+            replacements.push({ 
+              id: doc.id, 
+              from: data.from, 
+              to: data.to 
+            });
+          }
         });
+        console.log('Fetched replacements:', replacements);
         sendResponse({ replacements });
       })
       .catch((error) => {

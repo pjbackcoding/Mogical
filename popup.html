@@ -218,7 +218,10 @@
 
   <div class="save-feedback">Changes saved successfully!</div>
 
-  <!-- Include your popup.js after the DOM is ready -->
+  <!-- Include Firebase scripts first -->
+  <script src="firebase_app.js"></script>
+  <script src="firebase_firestore.js"></script>
+  <!-- Include your popup.js after Firebase is loaded -->
   <script src="popup.js"></script>
 </body>
 </html>

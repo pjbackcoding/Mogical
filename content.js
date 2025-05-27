@@ -48,7 +48,7 @@ function performTextReplacement(text, isHTMLContext = false) {
 
     try {
       // Escape 'from' string to be used in RegExp constructor
-      const escapedFrom = pair.from.replace(/[.*+?^${}()|[\]\]/g, '\$&');
+      const escapedFrom = pair.from.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&');
       
       // For HTML context, \n matches <br> or newlines; for non-HTML, \n matches only newlines.
       const regexPattern = isHTMLContext ? 

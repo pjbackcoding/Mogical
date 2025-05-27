@@ -58,7 +58,7 @@ function performTextReplacement(text, isHTMLContext = false) {
       // Using word boundary check for whole word replacements if the pattern looks like a word
       // Only apply word boundaries if the pattern is a word-like structure
       const shouldUseWordBoundary = /^\w+$/.test(pair.from);
-      const finalPattern = shouldUseWordBoundary ? `\b${regexPattern}\b` : regexPattern;
+      const finalPattern = shouldUseWordBoundary ? `\\b${regexPattern}\\b` : regexPattern;
       
       const regex = new RegExp(finalPattern, 'g'); // Global replacement
 

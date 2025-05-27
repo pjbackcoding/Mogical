@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Mogical Icons</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+            background-color: white;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mogical Icon Generator</h1>
+    <div class="container">
+        <div>
+            <h3>16x16 Icon</h3>
+            <canvas id="canvas16" width="16" height="16"></canvas>
+        </div>
+        <div>
+            <h3>48x48 Icon</h3>
+            <canvas id="canvas48" width="48" height="48"></canvas>
+        </div>
+        <div>
+            <h3>128x128 Icon</h3>
+            <canvas id="canvas128" width="128" height="128"></canvas>
+        </div>
+        <div class="buttons">
+            <button id="downloadAll">Download All Icons</button>
+        </div>
+    </div>
+
+    <script>
+        // Function to draw an icon on a canvas with given size
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#6A11CB');
+            gradient.addColorStop(1, '#2575FC');
+            
+            // Fill background
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Draw "M" letter
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${Math.floor(size * 0.7)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('M', size / 2, size / 2);
+            
+            // Add a small sparkle
+            const sparkleSize = size * 0.15;
+            ctx.fillStyle = '#FFEB3B';
+            ctx.beginPath();
+            ctx.arc(size * 0.8, size * 0.2, sparkleSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Draw icons for each size
+        drawIcon(document.getElementById('canvas16'), 16);
+        drawIcon(document.getElementById('canvas48'), 48);
+        drawIcon(document.getElementById('canvas128'), 128);
+        
+        // Function to download a canvas as PNG
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Download all icons when button is clicked
+        document.getElementById('downloadAll').addEventListener('click', function() {
+            downloadCanvas(document.getElementById('canvas16'), 'icon16.png');
+            downloadCanvas(document.getElementById('canvas48'), 'icon48.png');
+            downloadCanvas(document.getElementById('canvas128'), 'icon128.png');
+        });
+    </script>
+</body>
+</html>

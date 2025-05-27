@@ -1,0 +1,199 @@
+/* 
+      Layout and base styling 
+    */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #ecf0f1;
+      width: 400px;
+      max-height: 600px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    h2 {
+      margin: 0 0 20px 0;
+      font-size: 1.4em;
+      position: relative;
+      color: #2c3e50;
+    }
+
+    /* Underline highlight for the heading */
+    h2::after {
+      content: '';
+      display: block;
+      width: 70px;
+      height: 3px;
+      background: #3498db;
+      margin-top: 5px;
+      border-radius: 2px;
+    }
+
+    /*
+      Scrollbar styling for the main container
+    */
+    .container::-webkit-scrollbar {
+      width: 8px;
+    }
+    .container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .container::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    .container::-webkit-scrollbar-thumb:hover {
+      background: #666;
+    }
+
+    /*
+      Buttons
+    */
+    .button-bar {
+      padding: 0 20px 20px;
+      background-color: #ecf0f1;
+    }
+
+    button {
+      display: inline-block;
+      padding: 0.7em 1.2em;
+      margin-right: 10px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-weight: 500;
+    }
+
+    #addNew {
+      background: #2ecc71;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    #addNew:hover {
+      background: #27ae60;
+    }
+
+    #save {
+      background: #3498db;
+      color: #fff;
+    }
+    #save:hover {
+      background: #2980b9;
+    }
+
+    /*
+      Replacement pairs container
+    */
+    #replacements {
+      width: 100%;
+    }
+
+    .replacement-pair {
+      position: relative;
+      background: #fff;
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .replacement-pair:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .replacement-pair label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: #666;
+      font-weight: 500;
+    }
+
+    textarea {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      resize: vertical;
+      min-height: 60px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 2px rgba(52,152,219,0.2);
+    }
+
+    /*
+      Remove button (positioned top-right)
+    */
+    .remove {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #e74c3c;
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .remove:hover {
+      background-color: #c0392b;
+    }
+
+    /* 
+      Save feedback message 
+    */
+    .save-feedback {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2ecc71;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: none;
+      animation: fadeInOut 2s ease-in-out;
+      z-index: 100; /* make sure it appears above everything */
+    }
+
+    @keyframes fadeInOut {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+      }
+      15% {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+      85% {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+      }
+    }

@@ -42,60 +42,30 @@ function performTextReplacement(text, isHTMLContext = false) {
     (b.from?.length || 0) - (a.from?.length || 0)
   );
 
-  sortedReplacements.forEach((pair) => {
+  // Simple string replacement approach without regex
+  for (const pair of sortedReplacements) {
     // Skip invalid pairs
     if (typeof pair.from !== 'string' || !pair.from) {
-      return; // 'from' must be a non-empty string
+      continue; // 'from' must be a non-empty string
     }
+    
+    const fromText = pair.from;
     const toText = typeof pair.to === 'string' ? pair.to : ''; // Default 'to' to empty string
-
+    
+    // Process the replacement text appropriately for the context
+    const effectiveToText = isHTMLContext ? toText.replace(/\n/g, '<br>') : toText;
+    
     try {
-      // Properly escape all special regex characters in the source string
-      let escapedFrom = pair.from;
-      // First, manually escape backslashes (needs to be done first)
-      escapedFrom = escapedFrom.replace(/\\/g, '\\\\');
-      // Then escape all other special regex characters
-      escapedFrom = escapedFrom.replace(/[.*+?^${}()|[\]]/g, '\\$&');
-      
-      // Handle newlines differently based on context
-      let processedPattern;
-      if (isHTMLContext) {
-        // For HTML context, we want to match both actual newlines and <br> tags
-        processedPattern = escapedFrom.replace(/\\n/g, '(?:\\n|<br\\s*\\/?>)');
-      } else {
-        // For plain text, just match literal newlines
-        processedPattern = escapedFrom.replace(/\\n/g, '\\n');
-      }
-
-      // Only apply word boundaries for word-like patterns
-      let finalPattern = processedPattern;
-      if (/^\\w+$/.test(pair.from)) {
-        finalPattern = `\\b${processedPattern}\\b`;
-      }
-      
-      // Create and use the regex safely
-      try {
-        const regex = new RegExp(finalPattern, 'g'); // Global replacement
-        
-        // Reset the regex state before testing
-        regex.lastIndex = 0;
-        if (regex.test(newText)) {
-          // Reset again before actual replacement
-          regex.lastIndex = 0;
-          
-          // Process the replacement text appropriately for the context
-          const effectiveToText = isHTMLContext ? toText.replace(/\n/g, '<br>') : toText;
-          
-          // Perform the actual replacement
-          newText = newText.replace(regex, effectiveToText);
-        }
-      } catch (regexError) {
-        console.error('Mogical: Invalid regex pattern created:', finalPattern, regexError);
+      // Simple string replacement - no regex
+      // This is much more reliable than regex for text replacement
+      if (newText.includes(fromText)) {
+        // Use split and join for simple string replacement
+        newText = newText.split(fromText).join(effectiveToText);
       }
     } catch (e) {
-      console.error('Mogical: Error during replacement processing:', e, 'for pair:', pair);
+      console.error('Mogical: Error during replacement:', e, 'for pair:', pair);
     }
-  });
+  }
   
   return newText;
 }

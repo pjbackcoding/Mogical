@@ -30,9 +30,11 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 function performTextReplacement(text, isHTMLContext = false) {
+  // Return early if text is not valid or no replacements defined
   if (typeof text !== 'string' || !text || !currentReplacements || currentReplacements.length === 0) {
     return text;
   }
+  
   let newText = text;
 
   // Sort replacements by length (longest first) to handle overlapping patterns correctly
@@ -41,40 +43,60 @@ function performTextReplacement(text, isHTMLContext = false) {
   );
 
   sortedReplacements.forEach((pair) => {
+    // Skip invalid pairs
     if (typeof pair.from !== 'string' || !pair.from) {
       return; // 'from' must be a non-empty string
     }
     const toText = typeof pair.to === 'string' ? pair.to : ''; // Default 'to' to empty string
 
     try {
-      // Escape 'from' string to be used in RegExp constructor
-      const escapedFrom = pair.from.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&');
+      // Properly escape all special regex characters in the source string
+      let escapedFrom = pair.from;
+      // First, manually escape backslashes (needs to be done first)
+      escapedFrom = escapedFrom.replace(/\\/g, '\\\\');
+      // Then escape all other special regex characters
+      escapedFrom = escapedFrom.replace(/[.*+?^${}()|[\]]/g, '\\$&');
       
-      // For HTML context, \n matches <br> or newlines; for non-HTML, \n matches only newlines.
-      const regexPattern = isHTMLContext ? 
-        escapedFrom.replace(/\n/g, '(?:\n|<br\s*\/?>)') : 
-        escapedFrom.replace(/\n/g, '\n');
+      // Handle newlines differently based on context
+      let processedPattern;
+      if (isHTMLContext) {
+        // For HTML context, we want to match both actual newlines and <br> tags
+        processedPattern = escapedFrom.replace(/\\n/g, '(?:\\n|<br\\s*\\/?>)');
+      } else {
+        // For plain text, just match literal newlines
+        processedPattern = escapedFrom.replace(/\\n/g, '\\n');
+      }
 
-      // Using word boundary check for whole word replacements if the pattern looks like a word
-      // Only apply word boundaries if the pattern is a word-like structure
-      const shouldUseWordBoundary = /^\w+$/.test(pair.from);
-      const finalPattern = shouldUseWordBoundary ? `\\b${regexPattern}\\b` : regexPattern;
+      // Only apply word boundaries for word-like patterns
+      let finalPattern = processedPattern;
+      if (/^\\w+$/.test(pair.from)) {
+        finalPattern = `\\b${processedPattern}\\b`;
+      }
       
-      const regex = new RegExp(finalPattern, 'g'); // Global replacement
-
-      // Use a test and replace approach that works reliably
-      // Reset regex lastIndex before testing to ensure consistent behavior
-      regex.lastIndex = 0;
-      if (regex.test(newText)) {
-        // Reset regex lastIndex again before replacement
+      // Create and use the regex safely
+      try {
+        const regex = new RegExp(finalPattern, 'g'); // Global replacement
+        
+        // Reset the regex state before testing
         regex.lastIndex = 0;
-        const effectiveToText = isHTMLContext ? toText.replace(/\n/g, '<br>') : toText;
-        newText = newText.replace(regex, effectiveToText);
+        if (regex.test(newText)) {
+          // Reset again before actual replacement
+          regex.lastIndex = 0;
+          
+          // Process the replacement text appropriately for the context
+          const effectiveToText = isHTMLContext ? toText.replace(/\n/g, '<br>') : toText;
+          
+          // Perform the actual replacement
+          newText = newText.replace(regex, effectiveToText);
+        }
+      } catch (regexError) {
+        console.error('Mogical: Invalid regex pattern created:', finalPattern, regexError);
       }
     } catch (e) {
-      console.error('Mogical: Error during replacement:', e, 'for pair:', pair);
+      console.error('Mogical: Error during replacement processing:', e, 'for pair:', pair);
     }
   });
+  
   return newText;
 }
 

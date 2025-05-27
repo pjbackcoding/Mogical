@@ -1,9 +1,11 @@
-// content.js
+// content.js - Extremely simplified version
 const STORAGE_KEY_REPLACEMENTS = 'replacements';
 
+// Global state
 let currentReplacements = [];
-const processedTextNodes = new Set(); // To avoid re-processing identical text nodes in the same context
+const processedTextNodes = new Set(); 
 
+// Load replacements from storage
 function loadReplacementsFromStorage() {
   chrome.storage.sync.get([STORAGE_KEY_REPLACEMENTS], (result) => {
     if (chrome.runtime.lastError) {
@@ -12,258 +14,406 @@ function loadReplacementsFromStorage() {
       return;
     }
     currentReplacements = result[STORAGE_KEY_REPLACEMENTS] || [];
-    // console.log('Mogical: Replacements loaded:', currentReplacements);
-    // When replacements change, we might need to re-process the page.
-    // For simplicity, clear processed nodes so they can be re-evaluated.
+    
+    // DEBUG: Log détaillé des remplacements
+    console.log('Mogical: Loaded replacements:', JSON.stringify(currentReplacements));
+    console.log('Mogical: Nombre de remplacements:', currentReplacements.length);
+    
+    // DEBUG: Force test replacement si aucun n'est défini
+    if (currentReplacements.length === 0) {
+      console.log('Mogical: DEBUG - Ajout d\'un remplacement de test');
+      currentReplacements = [
+        { from: 'test', to: 'TEST RÉUSSI' },
+        { from: 'hello', to: 'bonjour' }
+      ];
+    }
+    
+    // DEBUG: Vérification individuelle de chaque remplacement
+    currentReplacements.forEach((r, i) => {
+      console.log(`Mogical: Remplacement #${i + 1}:`, r.from, '->', r.to);
+    });
+    
     processedTextNodes.clear();
-    scanPageForTextNodes(); // Re-scan static text with new rules
+    scanPageForTextNodes();
   });
 }
 
+// Listen for changes in storage
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes[STORAGE_KEY_REPLACEMENTS]) {
     currentReplacements = changes[STORAGE_KEY_REPLACEMENTS].newValue || [];
-    // console.log('Mogical: Replacements updated:', currentReplacements);
+    console.log('Mogical: Updated replacements:', currentReplacements);
     processedTextNodes.clear();
-    scanPageForTextNodes(); // Re-scan static text with new rules
+    scanPageForTextNodes();
   }
 });
 
+// Simple text replacement function - no regex for maximum reliability
 function performTextReplacement(text, isHTMLContext = false) {
-  // Return early if text is not valid or no replacements defined
+  console.log('Mogical: performTextReplacement appelé avec:', text.substring(0, 50), isHTMLContext ? '(HTML)' : '(texte)');
+  
   if (typeof text !== 'string' || !text || !currentReplacements || currentReplacements.length === 0) {
+    console.log('Mogical: Remplacement ignoré - texte invalide ou pas de remplacements');
     return text;
   }
   
+  // Vérification spéciale pour les raccourcis (commandes) commençant par tiret
+  if (text.trim().startsWith('-')) {
+    console.log('Mogical: Détection d\'un raccourci potentiel:', text.trim());
+    
+    // Extraire le premier mot (jusqu'au premier espace ou fin de ligne)
+    const commandParts = text.trim().split(/\s+/);
+    const command = commandParts[0]; // Premier mot, potentiellement un raccourci comme "-tel"
+    
+    console.log('Mogical: Commande détectée:', command);
+    
+    // Vérifier si ce raccourci existe dans nos remplacements
+    for (const pair of currentReplacements) {
+      if (pair.from === command) {
+        console.log('Mogical: CORRESPONDANCE DE COMMANDE TROUVÉE pour', command);
+        // Si c'est un raccourci connu, remplacer tout le texte par le remplacement
+        return pair.to;
+      }
+    }
+  }
+  
   let newText = text;
-
-  // Sort replacements by length (longest first) to handle overlapping patterns correctly
+  console.log('Mogical: Nombre de remplacements à appliquer:', currentReplacements.length);
+  
+  // Sort by length (longest first) to avoid partial replacements
   const sortedReplacements = [...currentReplacements].sort((a, b) => 
     (b.from?.length || 0) - (a.from?.length || 0)
   );
-
-  // Simple string replacement approach without regex
+  
+  // Débug direct: Tester le remplacement de 'test' par 'TEST DEBUG'
+  if (text.includes('test')) {
+    console.log('Mogical: TEST DIRECT - "test" trouvé dans le texte');
+    newText = text.replace(/test/g, 'TEST DEBUG');
+    console.log('Mogical: Texte après remplacement direct:', newText);
+    return newText;
+  }
+  
   for (const pair of sortedReplacements) {
-    // Skip invalid pairs
-    if (typeof pair.from !== 'string' || !pair.from) {
-      continue; // 'from' must be a non-empty string
+    if (!pair.from) {
+      console.log('Mogical: Paire ignorée - fromText vide');
+      continue;
     }
     
     const fromText = pair.from;
-    const toText = typeof pair.to === 'string' ? pair.to : ''; // Default 'to' to empty string
+    const toText = pair.to || '';
     
-    // Process the replacement text appropriately for the context
-    const effectiveToText = isHTMLContext ? toText.replace(/\n/g, '<br>') : toText;
+    console.log(`Mogical: Vérification du remplacement: "${fromText}" -> "${toText}"`);
     
     try {
-      // Simple string replacement - no regex
-      // This is much more reliable than regex for text replacement
-      if (newText.includes(fromText)) {
-        // Use split and join for simple string replacement
-        newText = newText.split(fromText).join(effectiveToText);
+      // Test explicite pour voir si le texte à remplacer est présent
+      if (newText.indexOf(fromText) >= 0) {
+        console.log(`Mogical: MATCH TROUVÉ pour "${fromText}"!`);
+        
+        if (isHTMLContext) {
+          // Handle HTML context
+          const effectiveToText = toText.replace(/\n/g, '<br>');
+          console.log(`Mogical: Remplacement HTML: "${fromText}" -> "${effectiveToText}"`);
+          newText = newText.split(fromText).join(effectiveToText);
+        } else {
+          // Simple text replacement
+          console.log(`Mogical: Remplacement texte: "${fromText}" -> "${toText}"`);
+          newText = newText.split(fromText).join(toText);
+        }
+      } else {
+        console.log(`Mogical: Pas de correspondance pour "${fromText}"`);
       }
     } catch (e) {
-      console.error('Mogical: Error during replacement:', e, 'for pair:', pair);
+      console.error('Mogical: Erreur lors du remplacement:', e);
     }
+  }
+  
+  if (newText !== text) {
+    console.log('Mogical: Texte modifié après remplacements!');
+  } else {
+    console.log('Mogical: Aucun changement après traitement');
   }
   
   return newText;
 }
 
+// Set element value and trigger events
 function setElementValueNatively(element, value) {
-  const proto = Object.getPrototypeOf(element);
-  const valueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-
-  if (valueSetter) {
-    valueSetter.call(element, value);
-  } else {
-    // Fallback if no native setter is found (e.g., some custom elements)
+  try {
+    // Try to use the setter if possible
+    const proto = Object.getPrototypeOf(element);
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    
+    if (setter) {
+      setter.call(element, value);
+    } else {
+      element.value = value;
+    }
+    
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  } catch (e) {
+    console.log('Mogical: Error setting value:', e);
+    // Fallback
     element.value = value;
   }
-
-  // Dispatch input and change events to notify frameworks
-  element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-  element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
 }
 
+// Set content for contentEditable elements
 function setContentEditableHTML(element, html) {
   element.innerHTML = html;
-  element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+  element.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+// Process a single text node
 function processSingleTextNode(node) {
   if (!node || node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) {
     return;
   }
 
   const originalText = node.textContent;
-  // A more robust key or using a WeakSet for `processedTextNodes` might be better for complex scenarios.
-  const processingKey = `${originalText}_${node.parentNode?.tagName}_${Array.from(node.parentNode?.childNodes || []).indexOf(node)}`;
+  
+  // Create a key to avoid processing the same node multiple times
+  const processingKey = `${originalText}_${node.parentNode?.tagName}`;
   if (processedTextNodes.has(processingKey)) {
     return;
   }
 
+  // Perform the replacement
   const newText = performTextReplacement(originalText, true);
 
+  // Only update if the text actually changed
   if (newText !== originalText) {
-    // console.log('Mogical: Replacing text node content:', originalText, '->', newText);
-    if (newText.includes('<') || newText.includes('&')) { // Potential HTML content
-      const tempContainer = document.createElement('div');
-      tempContainer.innerHTML = newText; // Safely parse the HTML string
-      
-      const parent = node.parentNode;
-      if (parent) {
-        while (tempContainer.firstChild) {
-          parent.insertBefore(tempContainer.firstChild, node);
+    console.log('Mogical: Replacing:', originalText, '->', newText);
+    
+    // Check if the replacement contains HTML
+    if (newText.includes('<') || newText.includes('&')) {
+      try {
+        // Handle HTML replacement
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = newText;
+        
+        const parent = node.parentNode;
+        if (parent) {
+          while (tempContainer.firstChild) {
+            parent.insertBefore(tempContainer.firstChild, node);
+          }
+          parent.removeChild(node);
         }
-        parent.removeChild(node);
+      } catch (e) {
+        // Fallback to simple text replacement if HTML parsing fails
+        node.textContent = newText;
       }
     } else {
-      node.textContent = newText; // Simple text replacement
+      // Simple text replacement
+      node.textContent = newText;
     }
+    
     processedTextNodes.add(processingKey);
   }
 }
 
+// Handle input events in editable elements
 function handleEditableElementInput(event) {
+  // DEBUG: Log que la fonction est appelée
+  console.log('Mogical: Input event reçu', event.type, event.target.tagName);
+  
   const element = event.target;
 
-  if (!element || element.type === 'password' || 
+  // Skip elements that shouldn't be processed
+  if (!element || 
+      element.type === 'password' || 
       !(element.isContentEditable || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
+    console.log('Mogical: Élément ignoré - type non compatible');
     return;
   }
-  // Avoid processing inputs not in a form unless they are contentEditable (heuristic)
-  if (element.tagName !== 'BODY' && !element.isContentEditable && !element.closest('form')){
-      // console.log('Mogical: Skipping non-form input unless contenteditable:', element);
-      return;
-  }
+  
+  // Accepter tous les champs de texte, même s'ils ne sont pas dans un formulaire
+  // Note: Nous ne filtrons plus sur la présence d'un formulaire
+  console.log('Mogical: Élément accepté - champ de texte détecté');
 
+  // Get current content
   const originalContent = element.isContentEditable ? element.innerHTML : element.value;
+  console.log('Mogical: Contenu original:', originalContent);
+  console.log('Mogical: Nombre de remplacements actifs:', currentReplacements.length);
+  
+  // DEBUG: Test forcé avec un contenu simple
+  if (originalContent.includes('test')) {
+    console.log('Mogical: Le mot "test" a été détecté!');
+  }
+  
+  if (originalContent.includes('hello')) {
+    console.log('Mogical: Le mot "hello" a été détecté!');
+  }
+  
+  // Replace text
   const newContent = performTextReplacement(originalContent, element.isContentEditable);
+  console.log('Mogical: Contenu après remplacement potentiel:', newContent);
 
+  // Only update if content changed
   if (newContent !== originalContent) {
-    // console.log('Mogical: Text changed in editable:', originalContent, '->', newContent);
+    console.log('Mogical: REMPLACEMENT EFFECTUÉ!');
+    console.log('Mogical: Replacing in editable:', originalContent, '->', newContent);
+    
     if (element.isContentEditable) {
       setContentEditableHTML(element, newContent);
     } else {
       setElementValueNatively(element, newContent);
     }
+  } else {
+    console.log('Mogical: Aucun changement détecté dans le contenu');
   }
 }
 
+// Scan the page for text nodes to process
 function scanPageForTextNodes() {
-  // console.log('Mogical: Scanning page for text nodes...');
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode: function (node) {
-        const parentTag = node.parentElement?.tagName;
-        if (parentTag === 'SCRIPT' || parentTag === 'STYLE' || parentTag === 'TEXTAREA' || 
-            node.parentElement?.isContentEditable || node.parentElement?.closest('[contenteditable="true"]')) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        return NodeFilter.FILTER_ACCEPT;
-      },
-    },
-    // false // deprecated in modern browsers
-  );
+  console.log('Mogical: Scanning page for text nodes...');
+  
+  try {
+    // Check if body exists
+    if (!document.body) {
+      console.log('Mogical: Body not available yet');
+      return;
+    }
+    
+    // Create a tree walker to find text nodes
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function (node) {
+          // Skip nodes inside scripts, styles, and editable elements
+          const parentTag = node.parentElement?.tagName;
+          if (parentTag === 'SCRIPT' || 
+              parentTag === 'STYLE' || 
+              parentTag === 'TEXTAREA' || 
+              node.parentElement?.isContentEditable || 
+              node.parentElement?.closest('[contenteditable="true"]')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      }
+    );
 
-  let node;
-  const nodesToProcess = [];
-  while ((node = walker.nextNode())) {
-    nodesToProcess.push(node); // Collect nodes first
+    // Collect nodes to process
+    const nodesToProcess = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      nodesToProcess.push(node);
+    }
+    
+    // Process all collected nodes
+    console.log(`Mogical: Found ${nodesToProcess.length} text nodes to process`);
+    nodesToProcess.forEach(processSingleTextNode);
+  } catch (e) {
+    console.error('Mogical: Error scanning page:', e);
   }
-  // Process collected nodes to avoid issues if DOM changes during traversal
-  nodesToProcess.forEach(processSingleTextNode);
 }
 
-/*
-// Function to simulate a spacebar press (Commented out as unused)
-function triggerSpacePress() {
-  const element = document.activeElement;
-  if (!element || !(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) return;
-  const start = element.selectionStart;
-  const end = element.selectionEnd;
-  const currentValue = element.value;
-  const newValue = currentValue.substring(0, start) + ' ' + currentValue.substring(end);
-  setElementValueNatively(element, newValue);
-  element.setSelectionRange(start + 1, start + 1);
+// Main initialization code
+function initMogical() {
+  console.log('Mogical: Initializing extension...');
+  
+  // Load initial replacements
+  loadReplacementsFromStorage();
+  
+  // Set up input event listener
+  document.addEventListener('input', handleEditableElementInput, true);
+  
+  // Set up mutation observer
+  setupMutationObserver();
+  
+  // Initial scan for existing text
+  setTimeout(scanPageForTextNodes, 500);
+  
+  console.log('Mogical: Initialization complete');
 }
-*/
 
-// Initial load of replacements
-loadReplacementsFromStorage();
-
-// Event listener for input on editable elements (capture phase recommended)
-document.addEventListener('input', handleEditableElementInput, true);
-
-// MutationObserver to watch for DOM changes
-const domObserver = new MutationObserver((mutations) => {
-  // Debounce or throttle this callback if performance becomes an issue
-  for (const mutation of mutations) {
-    if (mutation.type === 'childList') {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          processSingleTextNode(node);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          // Scan the new element and its children for text nodes
-          const treeWalker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
-             acceptNode: function (n) {
-                const pTag = n.parentElement?.tagName;
-                if (pTag === 'SCRIPT' || pTag === 'STYLE' || pTag === 'TEXTAREA' || 
-                    n.parentElement?.isContentEditable || n.parentElement?.closest('[contenteditable="true"]')) {
-                    return NodeFilter.FILTER_REJECT;
+// Set up mutation observer to watch for DOM changes
+function setupMutationObserver() {
+  try {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        // Handle new nodes
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              // Process added text nodes directly
+              processSingleTextNode(node);
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+              // Process text nodes inside added elements
+              try {
+                const walker = document.createTreeWalker(
+                  node, 
+                  NodeFilter.SHOW_TEXT,
+                  {
+                    acceptNode: function(n) {
+                      const parent = n.parentElement;
+                      if (!parent || 
+                          parent.tagName === 'SCRIPT' || 
+                          parent.tagName === 'STYLE' || 
+                          parent.tagName === 'TEXTAREA' ||
+                          parent.isContentEditable || 
+                          parent.closest('[contenteditable="true"]')) {
+                        return NodeFilter.FILTER_REJECT;
+                      }
+                      return NodeFilter.FILTER_ACCEPT;
+                    }
+                  }
+                );
+                
+                let textNode;
+                while (textNode = walker.nextNode()) {
+                  processSingleTextNode(textNode);
                 }
-                return NodeFilter.FILTER_ACCEPT;
+              } catch (e) {
+                console.error('Mogical: Error processing element node:', e);
+              }
             }
           });
-          let textNode;
-          while(textNode = treeWalker.nextNode()) {
-            processSingleTextNode(textNode);
+        } 
+        // Handle text changes
+        else if (mutation.type === 'characterData') {
+          if (mutation.target.nodeType === Node.TEXT_NODE) {
+            const parent = mutation.target.parentElement;
+            if (parent && 
+                parent.tagName !== 'TEXTAREA' && 
+                !parent.isContentEditable && 
+                !parent.closest('[contenteditable="true"]')) {
+              processSingleTextNode(mutation.target);
+            }
           }
         }
-      });
-    } else if (mutation.type === 'characterData') {
-      // Process the target node if it's a text node and not inside an editable element
-      if (mutation.target.nodeType === Node.TEXT_NODE) {
-        const parentElement = mutation.target.parentElement;
-        if (parentElement && parentElement.tagName !== 'TEXTAREA' && !parentElement.isContentEditable && !parentElement.closest('[contenteditable="true"]')) {
-            processSingleTextNode(mutation.target);
-        }
       }
-    }
-  }
-});
-
-// Start observing the document body for changes
-if (document.body) { // Ensure body exists before observing
-    domObserver.observe(document.body, {
+    });
+    
+    // Start observing if body exists
+    if (document.body) {
+      observer.observe(document.body, {
         childList: true,
         subtree: true,
-        characterData: true,
-    });
-} else {
-    // If body is not yet available, wait for DOMContentLoaded
-    document.addEventListener('DOMContentLoaded', () => {
-        domObserver.observe(document.body, {
+        characterData: true
+      });
+      console.log('Mogical: Mutation observer started');
+    } else {
+      // Wait for body to be available
+      document.addEventListener('DOMContentLoaded', () => {
+        if (document.body) {
+          observer.observe(document.body, {
             childList: true,
             subtree: true,
-            characterData: true,
-        });
-        // Initial scan after DOM is fully loaded
-        setTimeout(scanPageForTextNodes, 500); // Delay slightly for dynamic content
-    });
+            characterData: true
+          });
+          console.log('Mogical: Mutation observer started (delayed)');
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Mogical: Error setting up mutation observer:', e);
+  }
 }
 
-// Fallback initial scan if DOMContentLoaded already fired or body exists
-if (document.readyState === 'complete' || document.readyState === 'interactive' && document.body) {
-    setTimeout(scanPageForTextNodes, 500); // Delay slightly for dynamic content
-} else {
-    window.addEventListener('load', () => { // Failsafe: scan after all resources load
-        setTimeout(scanPageForTextNodes, 500);
-    });
-}
-
-// The periodic scan is removed in favor of MutationObserver and strategic re-scans.
-// // setInterval(scanPageForTextNodes, 3000); // Example: less frequent periodic scan if needed
+// Start the extension
+console.log('Mogical: Extension loaded');
+initMogical();
